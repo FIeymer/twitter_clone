@@ -1,0 +1,55 @@
+services:
+  client:
+    container_name: client_container
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    ports:
+      - "8000:80"
+    depends_on:
+      server:
+        condition: service_started
+        restart: true
+    networks:
+      - app_network
+
+
+  server:
+    container_name: server_container
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+    networks:
+      - app_network
+
+
+  db:
+    container_name: postgres_db
+    image: postgres:15
+    networks:
+      - app_network
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: twitter_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init_db.sh:/docker-entrypoint-init.d/init_db.sh
+      - ./db:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -d twitter_db -U admin"]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 80s
+
+networks:
+  app_network:
+    driver: bridge
